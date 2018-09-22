@@ -63,6 +63,7 @@ import init from './api/init';
 import flip from './api/flip';
 import detectDimensions from './api/detectDimensions';
 import scale from './api/scale';
+import filter from './api/filter';
 
 import { version } from '../package.json';
 import initState from './state';
@@ -212,6 +213,9 @@ const ParCoords = userConfig => {
   install2DStrums(brush, config, pc, events, xscale);
   installAngularBrush(brush, config, pc, events, xscale);
   install1DAxesMulti(brush, config, pc, events);
+
+  // allow outside filters
+  pc.filter = filter(config, pc);
 
   pc.version = version;
   // this descriptive text should live with other introspective methods

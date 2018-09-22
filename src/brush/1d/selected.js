@@ -1,4 +1,6 @@
 import { brushSelection } from 'd3-brush';
+import { matchArray } from 'searchjs';
+
 //https://github.com/d3/d3-brush/issues/10
 
 // data within extents
@@ -26,7 +28,9 @@ const selected = (state, config, brushGroup) => () => {
   //if (actives.length === 0) return false;
 
   // Resolves broken examples for now. They expect to get the full dataset back from empty brushes
-  if (actives.length === 0) return config.data;
+  if (actives.length === 0) {
+    return matchArray(config.data, config.filters);
+  }
 
   // test if within range
   const within = {
@@ -60,7 +64,7 @@ const selected = (state, config, brushGroup) => () => {
     },
   };
 
-  return config.data.filter(d => {
+  return matchArray(config.data, config.filters).filter(d => {
     switch (brushGroup.predicate) {
       case 'AND':
         return actives.every(function(p, dimension) {

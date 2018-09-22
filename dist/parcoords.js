@@ -1,8 +1,8 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('requestanimationframe'), require('d3-selection'), require('d3-brush'), require('d3-drag'), require('d3-shape'), require('d3-scale'), require('d3-array'), require('d3-collection'), require('d3-axis'), require('d3-dispatch')) :
-  typeof define === 'function' && define.amd ? define(['requestanimationframe', 'd3-selection', 'd3-brush', 'd3-drag', 'd3-shape', 'd3-scale', 'd3-array', 'd3-collection', 'd3-axis', 'd3-dispatch'], factory) :
-  (global.ParCoords = factory(null,global.d3Selection,global.d3Brush,global.d3Drag,global.d3Shape,global.d3Scale,global.d3Array,global.d3Collection,global.d3Axis,global.d3Dispatch));
-}(this, (function (requestanimationframe,d3Selection,d3Brush,d3Drag,d3Shape,d3Scale,d3Array,d3Collection,d3Axis,d3Dispatch) { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('requestanimationframe'), require('d3-selection'), require('d3-brush'), require('d3-drag'), require('d3-shape'), require('searchjs'), require('d3-scale'), require('d3-array'), require('d3-collection'), require('d3-axis'), require('d3-dispatch')) :
+  typeof define === 'function' && define.amd ? define(['requestanimationframe', 'd3-selection', 'd3-brush', 'd3-drag', 'd3-shape', 'searchjs', 'd3-scale', 'd3-array', 'd3-collection', 'd3-axis', 'd3-dispatch'], factory) :
+  (global.ParCoords = factory(null,global.d3Selection,global.d3Brush,global.d3Drag,global.d3Shape,global.searchjs,global.d3Scale,global.d3Array,global.d3Collection,global.d3Axis,global.d3Dispatch));
+}(this, (function (requestanimationframe,d3Selection,d3Brush,d3Drag,d3Shape,searchjs,d3Scale,d3Array,d3Collection,d3Axis,d3Dispatch) { 'use strict';
 
   var renderQueue = function renderQueue(func) {
     var _queue = [],
@@ -1660,6 +1660,7 @@
             return categoryRangeValue >= ranges[p][0] && categoryRangeValue <= ranges[p][1];
           }
         };
+        console.log(searchjs.matchArray);
         return config.data.filter(function (d) {
           return actives.every(function (p, dimension) {
             return within[config.dimensions[p].type](d, p, dimension);
@@ -2873,6 +2874,13 @@
     };
   };
 
+  var filter = function filter(config, pc) {
+    return function () {
+      console.log(config);
+      return this;
+    };
+  };
+
   var version = "2.1.8";
 
   var DefaultConfig = {
@@ -2907,7 +2915,8 @@
     hideAxis: [],
     flipAxes: [],
     animationTime: 1100, // How long it takes to flip the axis when you double click
-    rotateLabels: false
+    rotateLabels: false,
+    outsideFilters: null
   };
 
   var _this$4 = undefined;
@@ -3247,6 +3256,9 @@
     install2DStrums(brush, config, pc, events, xscale);
     installAngularBrush(brush, config, pc, events, xscale);
     install1DMultiAxes(brush, config, pc, events);
+
+    // allow outside filters
+    pc.filter = filter(config, pc);
 
     pc.version = version;
     // this descriptive text should live with other introspective methods

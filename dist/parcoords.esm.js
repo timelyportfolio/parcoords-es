@@ -3,6 +3,7 @@ import { select, event, mouse, selectAll } from 'd3-selection';
 import { brushSelection, brushY } from 'd3-brush';
 import { drag } from 'd3-drag';
 import { arc } from 'd3-shape';
+import { matchArray } from 'searchjs';
 import { scaleLinear, scaleOrdinal, scalePoint, scaleTime } from 'd3-scale';
 import { extent, min, ascending } from 'd3-array';
 import { entries, keys } from 'd3-collection';
@@ -1665,6 +1666,7 @@ var selected$4 = function selected(config, pc) {
           return categoryRangeValue >= ranges[p][0] && categoryRangeValue <= ranges[p][1];
         }
       };
+      console.log(matchArray);
       return config.data.filter(function (d) {
         return actives.every(function (p, dimension) {
           return within[config.dimensions[p].type](d, p, dimension);
@@ -2878,6 +2880,13 @@ var scale = function scale(config, pc) {
   };
 };
 
+var filter = function filter(config, pc) {
+  return function () {
+    console.log(config);
+    return this;
+  };
+};
+
 var version = "2.1.8";
 
 var DefaultConfig = {
@@ -2912,7 +2921,8 @@ var DefaultConfig = {
   hideAxis: [],
   flipAxes: [],
   animationTime: 1100, // How long it takes to flip the axis when you double click
-  rotateLabels: false
+  rotateLabels: false,
+  outsideFilters: null
 };
 
 var _this$4 = undefined;
@@ -3252,6 +3262,9 @@ var ParCoords = function ParCoords(userConfig) {
   install2DStrums(brush, config, pc, events, xscale);
   installAngularBrush(brush, config, pc, events, xscale);
   install1DMultiAxes(brush, config, pc, events);
+
+  // allow outside filters
+  pc.filter = filter(config, pc);
 
   pc.version = version;
   // this descriptive text should live with other introspective methods
