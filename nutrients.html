@@ -1,0 +1,41 @@
+<!doctype html>
+<title>Linking to Data Table</title>
+<link rel="stylesheet" type="text/css" href="./parcoords.css">
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+    /* parcoords */
+    #nutrients { height: 600px; width: 98%; }
+    #nutrients text { font-size: 10px; }
+</style>
+<script src="lib/d3.v5.min.js"></script>
+<script src="./parcoords.standalone.js"></script>
+<script src="lib/underscore.js"></script>
+<div id="nutrients" class="parcoords"></div>
+<script id="brushing">
+    var parcoords = ParCoords()("#nutrients");
+    d3.csv('data/nutrients.csv').then(function(data) {
+        var colorList = ['#3b73b9', '#aa71aa', '#ee3224', '#00aeef', '#f8981d',
+            '#80bb42', '#aacdef', '#cacec2', '#aaa6ce', '#df9e9d', '#6ab2e7',
+            '#ffdd00', '#9ac2b9', '#a7a9ac', '#bbbb42', '#e6a6ce'];
+
+        var groups = _(data).chain()
+            .pluck('group')
+            .uniq();
+
+        var colorScale = d3.scaleOrdinal().domain(groups).range(colorList);
+
+        var color = function(d) { return colorScale(d.group); };
+
+        parcoords
+            .data(data)
+            .color(color)
+            .hideAxis(['name'])
+            .margin({ top: 24, left: 60, bottom: 12, right: 0 })
+            .mode("queue")
+            .alpha(0.7)
+            .render()
+            .brushMode("1D-axes");  // enable brushing
+
+    });
+</script>
