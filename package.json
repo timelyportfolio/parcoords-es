@@ -9,6 +9,7 @@
   "scripts": {
     "_prebuild": "eslint src test",
     "build": "rollup -c",
+    "ghpages": "copy ./dist/parcoords.standalone.js ./demo/parcoords.standalone.js && copy ./dist/parcoords.css ./demo/parcoords.standalone.css && gh-pages -d demo",
     "dev": "rollup -c rollup.config.dev.js -w",
     "watch": "rollup -c -w",
     "pretest": "npm run build",
