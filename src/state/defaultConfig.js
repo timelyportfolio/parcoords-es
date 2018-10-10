@@ -31,6 +31,7 @@ const DefaultConfig = {
   flipAxes: [],
   animationTime: 1100, // How long it takes to flip the axis when you double click
   rotateLabels: false,
+  resolution: false
 };
 
 export default DefaultConfig;
