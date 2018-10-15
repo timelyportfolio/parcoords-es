@@ -67,14 +67,8 @@ const singlePathTile = (config, pc, position) => d => {
   return bres_grid;
 };
 
-const renderTiled = (config, pc, ctx, position) => () => {
-  pc.clear('foreground');
-  pc.clear('highlight');
-
-  //pc.renderBrushed.default();
-  //pc.renderMarked.default();
-
-  const points = config.data.map(singlePathTile(config, pc, position));
+const aggregatePoints = (config, data, pc, position) => {
+  const points = data.map(singlePathTile(config, pc, position));
   const gw = Math.abs(points[0][0][0].x[1] - points[0][0][0].x[0]);
   const gh = Math.abs(points[0][0][0].y[1] - points[0][0][0].y[0]);
 
@@ -89,6 +83,27 @@ const renderTiled = (config, pc, ctx, position) => () => {
     .key(d => d.y[0])
     .rollup(d => d.length)
     .map(points_collector);
+    return {
+      grid_aggregate: grid_aggregate,
+      gw: gw,
+      gh: gh
+    };
+}
+
+const renderTiled = (config, pc, ctx, position) => () => {
+  pc.clear('foreground');
+  pc.clear('highlight');
+
+  if(pc.brushed()) {
+    pc.renderBrushed.tiled();
+    return;
+  }
+  //pc.renderMarked.default();
+
+  const aggregated = aggregatePoints(config, config.data, pc, position);
+  const grid_aggregate = aggregated.grid_aggregate;
+  const gw = aggregated.gw;
+  const gh = aggregated.gh;
   const max_count = max(merge(grid_aggregate.values().map(d => d.values())));
 
   //const scale_opacity = scaleLinear().domain([0, max_count]);
@@ -117,4 +132,4 @@ const renderTiledQueue = (config, pc, foregroundQueue) => () => {
 
 export default renderTiled;
 
-export { tileForeground, renderTiledQueue };
+export { tileForeground, singlePathTile, renderTiledQueue, aggregatePoints };

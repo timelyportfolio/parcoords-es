@@ -7863,8 +7863,6 @@
     var saturday = weekday(6);
 
     var sundays = sunday.range;
-    var mondays = monday.range;
-    var thursdays = thursday.range;
 
     var month = newInterval(function (date) {
       date.setDate(1);
@@ -7954,8 +7952,6 @@
     var utcSaturday = utcWeekday(6);
 
     var utcSundays = utcSunday.range;
-    var utcMondays = utcMonday.range;
-    var utcThursdays = utcThursday.range;
 
     var utcMonth = newInterval(function (date) {
       date.setUTCDate(1);
@@ -10054,35 +10050,50 @@
       };
     };
 
+    var aggregatePoints = function aggregatePoints(config, data, pc, position) {
+      var points = data.map(singlePathTile(config, pc, position));
+      var gw = Math.abs(points[0][0][0].x[1] - points[0][0][0].x[0]);
+      var gh = Math.abs(points[0][0][0].y[1] - points[0][0][0].y[0]);
+
+      var points_collector = [];
+      points.forEach(function (d) {
+        return d.forEach(function (dd) {
+          return dd.forEach(function (ddd) {
+            return points_collector.push(ddd);
+          });
+        });
+      });
+      // will need to nest aggregate and apply color/opacity
+      debugger;
+      var grid_aggregate = nest().key(function (d) {
+        return d.x[0];
+      }).key(function (d) {
+        return d.y[0];
+      }).rollup(function (d) {
+        return d.length;
+      }).map(points_collector);
+      return {
+        grid_aggregate: grid_aggregate,
+        gw: gw,
+        gh: gh
+      };
+    };
+
     var renderTiled = function renderTiled(config, pc, ctx, position) {
       return function () {
         pc.clear('foreground');
         pc.clear('highlight');
 
-        //pc.renderBrushed.default();
+        if (pc.brushed()) {
+          pc.renderBrushed.tiled();
+          return;
+        }
         //pc.renderMarked.default();
 
-        var points = config.data.map(singlePathTile(config, pc, position));
-        var gw = Math.abs(points[0][0][0].x[1] - points[0][0][0].x[0]);
-        var gh = Math.abs(points[0][0][0].y[1] - points[0][0][0].y[0]);
-
-        var points_collector = [];
-        points.forEach(function (d) {
-          return d.forEach(function (dd) {
-            return dd.forEach(function (ddd) {
-              return points_collector.push(ddd);
-            });
-          });
-        });
-        // will need to nest aggregate and apply color/opacity
-        debugger;
-        var grid_aggregate = nest().key(function (d) {
-          return d.x[0];
-        }).key(function (d) {
-          return d.y[0];
-        }).rollup(function (d) {
-          return d.length;
-        }).map(points_collector);
+        var aggregated = aggregatePoints(config, config.data, pc, position);
+        var grid_aggregate = aggregated.grid_aggregate;
+        var gw = aggregated.gw;
+        var gh = aggregated.gh;
         var max_count = max$1(merge(grid_aggregate.values().map(function (d) {
           return d.values();
         })));
@@ -10093,6 +10104,40 @@
           d.value.entries().forEach(function (y) {
             //tileForeground( config, ctx, +d.key, +y.key, gw, gh, scale_opacity(y.value) )
             tileForeground(config, ctx, +d.key, +y.key, gw, gh, interpolateViridis(scale_normalize(y.value)));
+          });
+        });
+      };
+    };
+
+    var tileForegroundBrushed = function tileForegroundBrushed(config, ctx, x, y, gw, gh, color, opacity) {
+      // ctx.foreground.fillStyle = functor(config.color)(d, i);
+      //ctx.foreground.fillStyle = 'rgb(100, 100, 100,' + opacity + ')';
+      ctx.brushed.fillStyle = color;
+      ctx.brushed.fillRect(x, y, gw, gh);
+      // draw rects
+    };
+
+    var renderTiledBrushed = function renderTiledBrushed(config, pc, ctx, position) {
+      return function () {
+        pc.clear('brushed');
+
+        //pc.renderBrushed.default();
+        //pc.renderMarked.default();
+
+        var aggregated = aggregatePoints(config, config.brushed, pc, position);
+        var grid_aggregate = aggregated.grid_aggregate;
+        var gw = aggregated.gw;
+        var gh = aggregated.gh;
+        var max_count = max$1(merge(grid_aggregate.values().map(function (d) {
+          return d.values();
+        })));
+
+        //const scale_opacity = scaleLinear().domain([0, max_count]);
+        var scale_normalize = linear$2().domain([0, max_count]);
+        grid_aggregate.entries().forEach(function (d) {
+          d.value.entries().forEach(function (y) {
+            //tileForeground( config, ctx, +d.key, +y.key, gw, gh, scale_opacity(y.value) )
+            tileForegroundBrushed(config, ctx, +d.key, +y.key, gw, gh, interpolateViridis(scale_normalize(y.value)));
           });
         });
       };
@@ -10506,6 +10551,7 @@
       pc.renderMarked = renderMarked(config, pc, events);
       pc.render.default = renderDefault(config, pc, ctx, position);
       pc.render.tiled = renderTiled(config, pc, ctx, position);
+      pc.renderBrushed.tiled = renderTiledBrushed(config, pc, ctx, position);
       pc.render.queue = renderDefaultQueue(config, pc, foregroundQueue);
       pc.renderBrushed.default = renderBrushedDefault(config, ctx, position, pc, brush);
       pc.renderBrushed.queue = renderBrushedQueue(config, brush, brushedQueue);

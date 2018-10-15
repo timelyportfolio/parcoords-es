@@ -55,6 +55,7 @@ import renderDefault, {
   renderDefaultQueue,
 } from './api/renderDefault';
 import renderTiled from './api/renderTiled';
+import renderTiledBrushed from './api/renderTiledBrushed';
 import toTypeCoerceNumbers from './api/toTypeCoerceNumbers';
 import detectDimensionTypes from './api/detectDimensionTypes';
 import getOrderedDimensionKeys from './api/getOrderedDimensionKeys';
@@ -143,6 +144,7 @@ const ParCoords = userConfig => {
   pc.renderMarked = renderMarked(config, pc, events);
   pc.render.default = renderDefault(config, pc, ctx, position);
   pc.render.tiled = renderTiled(config, pc, ctx, position);
+  pc.renderBrushed.tiled = renderTiledBrushed(config, pc, ctx, position);
   pc.render.queue = renderDefaultQueue(config, pc, foregroundQueue);
   pc.renderBrushed.default = renderBrushedDefault(
     config,
