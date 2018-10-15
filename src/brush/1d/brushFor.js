@@ -22,7 +22,7 @@ const brushFor = (state, config, pc, events, brushGroup) => (
 
   const _brush = brushY(_selector).extent([[-15, 0], [15, brushRangeMax]]);
 
-  const invert = (selection, yscale) => {
+  const invertCategorical = (selection, yscale) => {
     if (selection.length === 0) {
       return [];
     }
@@ -45,7 +45,7 @@ const brushFor = (state, config, pc, events, brushGroup) => (
     let selection_scaled = [];
     const yscale = config.dimensions[axis].yscale;
     if (typeof yscale.invert === 'undefined') {
-      selection_scaled = invert(selection_raw, yscale);
+      selection_scaled = invertCategorical(selection_raw, yscale);
     } else {
       selection_scaled = selection_raw.map(d =>
         config.dimensions[axis].yscale.invert(d)
