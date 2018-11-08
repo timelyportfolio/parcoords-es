@@ -1,12 +1,15 @@
 import 'requestanimationframe';
 import { select, event, mouse, selectAll } from 'd3-selection';
 import { brushSelection, brushY } from 'd3-brush';
+import { matchArray } from 'searchjs';
 import { drag } from 'd3-drag';
 import { arc } from 'd3-shape';
-import { scaleLinear, scaleOrdinal, scalePoint, scaleTime } from 'd3-scale';
-import { extent, min, ascending } from 'd3-array';
-import { entries, keys } from 'd3-collection';
+import { scaleLinear, scaleOrdinal, scalePoint, scaleTime, scaleQuantize } from 'd3-scale';
+import { extent, min, range, merge, max, ascending } from 'd3-array';
+import { entries, nest, keys } from 'd3-collection';
 import { axisBottom, axisLeft, axisRight, axisTop } from 'd3-axis';
+import bresenham from 'bresenham';
+import { interpolateViridis } from 'd3-scale-chromatic';
 import { dispatch } from 'd3-dispatch';
 
 var renderQueue = function renderQueue(func) {
@@ -195,7 +198,9 @@ var selected = function selected(state, config, brushGroup) {
     //if (actives.length === 0) return false;
 
     // Resolves broken examples for now. They expect to get the full dataset back from empty brushes
-    if (actives.length === 0) return config.data;
+    if (actives.length === 0) {
+      return matchArray(config.data, config.filters);
+    }
 
     // test if within range
     var within = {
@@ -220,7 +225,7 @@ var selected = function selected(state, config, brushGroup) {
       }
     };
 
-    return config.data.filter(function (d) {
+    return matchArray(config.data, config.filters).filter(function (d) {
       switch (brushGroup.predicate) {
         case 'AND':
           return actives.every(function (p, dimension) {
@@ -251,13 +256,35 @@ var brushFor = function brushFor(state, config, pc, events, brushGroup) {
 
     var _brush = brushY(_selector).extent([[-15, 0], [15, brushRangeMax]]);
 
+    var invertCategorical = function invertCategorical(selection, yscale) {
+      if (selection.length === 0) {
+        return [];
+      }
+      var domain = yscale.domain();
+      var range$$1 = yscale.range();
+      var found = [];
+      range$$1.forEach(function (d, i) {
+        if (d >= selection[0] && d <= selection[1]) {
+          found.push(domain[i]);
+        }
+      });
+      return found;
+    };
+
     var convertBrushArguments = function convertBrushArguments(args) {
       var args_array = Array.prototype.slice.call(args);
       var axis = args_array[0];
       var selection_raw = brushSelection(args_array[2][0]) || [];
-      var selection_scaled = selection_raw.map(function (d) {
-        return config.dimensions[axis].yscale.invert(d);
-      });
+      // ordinal scales do not have invert
+      var selection_scaled = [];
+      var yscale = config.dimensions[axis].yscale;
+      if (typeof yscale.invert === 'undefined') {
+        selection_scaled = invertCategorical(selection_raw, yscale);
+      } else {
+        selection_scaled = selection_raw.map(function (d) {
+          return config.dimensions[axis].yscale.invert(d);
+        });
+      }
 
       return {
         axis: args_array[0],
@@ -700,9 +727,9 @@ var brushExtents$1 = function brushExtents(state, config, pc, events, brushGroup
           acc[cur] = [];
         } else {
           acc[cur] = axisBrushes.reduce(function (d, p, i) {
-            var range = brushSelection(document.getElementById('brush-' + pos + '-' + i));
-            if (range !== null) {
-              d = d.push(range);
+            var range$$1 = brushSelection(document.getElementById('brush-' + pos + '-' + i));
+            if (range$$1 !== null) {
+              d = d.push(range$$1);
             }
 
             return d;
@@ -1566,8 +1593,17 @@ var mergeParcoords = function mergeParcoords(pc) {
 
     // Create a canvas element to store the merged canvases
     var mergedCanvas = document.createElement('canvas');
-    mergedCanvas.width = pc.canvas.foreground.clientWidth * devicePixelRatio;
-    mergedCanvas.height = (pc.canvas.foreground.clientHeight + 30) * devicePixelRatio;
+
+    var foregroundCanvas = pc.canvas.foreground;
+    // We will need to adjust for canvas margins to align the svg and canvas
+    var canvasMarginLeft = Number(foregroundCanvas.style.marginLeft.replace('px', ''));
+
+    var textTopAdjust = 15;
+    var canvasMarginTop = Number(foregroundCanvas.style.marginTop.replace('px', '')) + textTopAdjust;
+    var width = (foregroundCanvas.clientWidth + canvasMarginLeft) * devicePixelRatio;
+    var height = (foregroundCanvas.clientHeight + canvasMarginTop) * devicePixelRatio;
+    mergedCanvas.width = width + 50; // pad so that svg labels at right will not get cut off
+    mergedCanvas.height = height + 30; // pad so that svg labels at bottom will not get cut off
     mergedCanvas.style.width = mergedCanvas.width / devicePixelRatio + 'px';
     mergedCanvas.style.height = mergedCanvas.height / devicePixelRatio + 'px';
 
@@ -1578,13 +1614,22 @@ var mergeParcoords = function mergeParcoords(pc) {
 
     // Merge all the canvases
     for (var key in pc.canvas) {
-      context.drawImage(pc.canvas[key], 0, 24 * devicePixelRatio, mergedCanvas.width, mergedCanvas.height - 30 * devicePixelRatio);
+      context.drawImage(pc.canvas[key], canvasMarginLeft * devicePixelRatio, canvasMarginTop * devicePixelRatio, width - canvasMarginLeft * devicePixelRatio, height - canvasMarginTop * devicePixelRatio);
     }
 
     // Add SVG elements to canvas
     var DOMURL = window.URL || window.webkitURL || window;
     var serializer = new XMLSerializer();
-    var svgStr = serializer.serializeToString(pc.selection.select('svg').node());
+    // axis labels are translated (0,-5) so we will clone the svg
+    //   and translate down so the labels are drawn on the canvas
+    var svgNodeCopy = pc.selection.select('svg').node().cloneNode(true);
+    svgNodeCopy.setAttribute('transform', 'translate(0,' + textTopAdjust + ')');
+    svgNodeCopy.setAttribute('height', svgNodeCopy.getAttribute('height') + textTopAdjust);
+    // text will need fill attribute since css styles will not get picked up
+    //   this is not sophisticated since it doesn't look up css styles
+    //   if the user changes
+    select(svgNodeCopy).selectAll('text').attr('fill', 'black');
+    var svgStr = serializer.serializeToString(svgNodeCopy);
 
     // Create a Data URI.
     var src = 'data:image/svg+xml;base64,' + window.btoa(svgStr);
@@ -1665,7 +1710,8 @@ var selected$4 = function selected(config, pc) {
           return categoryRangeValue >= ranges[p][0] && categoryRangeValue <= ranges[p][1];
         }
       };
-      return config.data.filter(function (d) {
+
+      return matchArray(config.data, config.filters).filter(function (d) {
         return actives.every(function (p, dimension) {
           return within[config.dimensions[p].type](d, p, dimension);
         });
@@ -1734,7 +1780,7 @@ var selected$4 = function selected(config, pc) {
         // filter data, but instead of returning it now,
         // put it into multiBrush data which is returned after
         // all brushes are iterated through.
-        var filtered = config.data.filter(function (d) {
+        var filtered = matchArray(config.data, config.filters).filter(function (d) {
           return actives.every(function (p, dimension) {
             return within[config.dimensions[p].type](d, p, dimension);
           });
@@ -2488,7 +2534,7 @@ var singleCurve = function singleCurve(config, position, d, ctx) {
 };
 
 // returns the y-position just beyond the separating null value line
-var getNullPosition = function getNullPosition(config) {
+var getNullPosition$1 = function getNullPosition(config) {
   if (config.nullValueSeparator === 'bottom') {
     return h(config) + 1;
   } else if (config.nullValueSeparator === 'top') {
@@ -2501,7 +2547,7 @@ var getNullPosition = function getNullPosition(config) {
 
 var singlePath = function singlePath(config, position, d, ctx) {
   Object.keys(config.dimensions).map(function (p) {
-    return [position(p), d[p] === undefined ? getNullPosition(config) : config.dimensions[p].yscale(d[p])];
+    return [position(p), d[p] === undefined ? getNullPosition$1(config) : config.dimensions[p].yscale(d[p])];
   }).sort(function (a, b) {
     return a[0] - b[0];
   }).forEach(function (p, i) {
@@ -2777,6 +2823,149 @@ var renderDefaultQueue = function renderDefaultQueue(config, pc, foregroundQueue
   };
 };
 
+var tileForeground = function tileForeground(config, ctx, x, y, gw, gh, color, opacity) {
+  // ctx.foreground.fillStyle = functor(config.color)(d, i);
+  //ctx.foreground.fillStyle = 'rgb(100, 100, 100,' + opacity + ')';
+  ctx.foreground.fillStyle = color;
+  ctx.foreground.fillRect(x, y, gw, gh);
+  // draw rects
+};
+
+var singlePathTile = function singlePathTile(config, pc, position) {
+  return function (d) {
+    var yrange = extent(config.dimensions[Object.keys(config.dimensions)[0]].yscale.range());
+    var height = Math.abs(yrange[0] - yrange[1]);
+    var points = Object.keys(config.dimensions).map(function (p) {
+      return [position(p), d[p] === undefined ? getNullPosition(config) : config.dimensions[p].yscale(d[p])];
+    }).sort(function (a, b) {
+      return a[0] - b[0];
+    });
+
+    var bres_grid = [];
+    points.forEach(function (p, i) {
+      if (i === points.length - 1) {
+        return;
+      }
+
+      var p2 = points[i + 1];
+      var width = pc.xscale.step();
+      var resolution = config.resolution || 20;
+      var gridh = height / resolution;
+      var dim = Object.keys(config.dimensions).filter(function (d) {
+        return config.dimensions[d].index === i;
+      })[0];
+      var dim2 = Object.keys(config.dimensions).filter(function (d) {
+        return config.dimensions[d].index === i + 1;
+      })[0];
+      var scalegx = scaleQuantize();
+      var scalegy = scaleQuantize();
+
+      scalegx.domain([pc.xscale(dim), pc.xscale(dim2)]).range(range(0, width / gridh));
+      scalegy.domain([0, height]).range(range(resolution));
+
+      var bres = bresenham(scalegx(p[0]), scalegy(p[1]), scalegx(p2[0]), scalegy(p2[1]));
+      bres_grid.push(bres.map(function (d) {
+        return { x: scalegx.invertExtent(d.x), y: scalegy.invertExtent(d.y) };
+      }));
+    });
+
+    return bres_grid;
+  };
+};
+
+var aggregatePoints = function aggregatePoints(config, data, pc, position) {
+  var points = data.map(singlePathTile(config, pc, position));
+  var gw = Math.abs(points[0][0][0].x[1] - points[0][0][0].x[0]);
+  var gh = Math.abs(points[0][0][0].y[1] - points[0][0][0].y[0]);
+
+  var points_collector = [];
+  points.forEach(function (d) {
+    return d.forEach(function (dd) {
+      return dd.forEach(function (ddd) {
+        return points_collector.push(ddd);
+      });
+    });
+  });
+  // will need to nest aggregate and apply color/opacity
+  debugger;
+  var grid_aggregate = nest().key(function (d) {
+    return d.x[0];
+  }).key(function (d) {
+    return d.y[0];
+  }).rollup(function (d) {
+    return d.length;
+  }).map(points_collector);
+  return {
+    grid_aggregate: grid_aggregate,
+    gw: gw,
+    gh: gh
+  };
+};
+
+var renderTiled = function renderTiled(config, pc, ctx, position) {
+  return function () {
+    pc.clear('foreground');
+    pc.clear('highlight');
+
+    if (pc.brushed()) {
+      pc.renderBrushed.tiled();
+      return;
+    }
+    //pc.renderMarked.default();
+
+    var aggregated = aggregatePoints(config, config.data, pc, position);
+    var grid_aggregate = aggregated.grid_aggregate;
+    var gw = aggregated.gw;
+    var gh = aggregated.gh;
+    var max_count = max(merge(grid_aggregate.values().map(function (d) {
+      return d.values();
+    })));
+
+    //const scale_opacity = scaleLinear().domain([0, max_count]);
+    var scale_normalize = scaleLinear().domain([0, max_count]);
+    grid_aggregate.entries().forEach(function (d) {
+      d.value.entries().forEach(function (y) {
+        //tileForeground( config, ctx, +d.key, +y.key, gw, gh, scale_opacity(y.value) )
+        tileForeground(config, ctx, +d.key, +y.key, gw, gh, interpolateViridis(scale_normalize(y.value)));
+      });
+    });
+  };
+};
+
+var tileForegroundBrushed = function tileForegroundBrushed(config, ctx, x, y, gw, gh, color, opacity) {
+  // ctx.foreground.fillStyle = functor(config.color)(d, i);
+  //ctx.foreground.fillStyle = 'rgb(100, 100, 100,' + opacity + ')';
+  ctx.brushed.fillStyle = color;
+  ctx.brushed.fillRect(x, y, gw, gh);
+  // draw rects
+};
+
+var renderTiledBrushed = function renderTiledBrushed(config, pc, ctx, position) {
+  return function () {
+    pc.clear('brushed');
+
+    //pc.renderBrushed.default();
+    //pc.renderMarked.default();
+
+    var aggregated = aggregatePoints(config, config.brushed, pc, position);
+    var grid_aggregate = aggregated.grid_aggregate;
+    var gw = aggregated.gw;
+    var gh = aggregated.gh;
+    var max_count = max(merge(grid_aggregate.values().map(function (d) {
+      return d.values();
+    })));
+
+    //const scale_opacity = scaleLinear().domain([0, max_count]);
+    var scale_normalize = scaleLinear().domain([0, max_count]);
+    grid_aggregate.entries().forEach(function (d) {
+      d.value.entries().forEach(function (y) {
+        //tileForeground( config, ctx, +d.key, +y.key, gw, gh, scale_opacity(y.value) )
+        tileForegroundBrushed(config, ctx, +d.key, +y.key, gw, gh, interpolateViridis(scale_normalize(y.value)));
+      });
+    });
+  };
+};
+
 // try to coerce to number before returning type
 var toTypeCoerceNumbers = function toTypeCoerceNumbers(v) {
   return parseFloat(v) == v && v !== null ? 'number' : toType(v);
@@ -2878,6 +3067,29 @@ var scale = function scale(config, pc) {
   };
 };
 
+var filterUpdated = function filterUpdated(config, pc, events) {
+  return function (newSelection) {
+    config.brushed = newSelection;
+    //events.call('filter', pc, config.brushed);
+    pc.renderBrushed();
+  };
+};
+
+// filter data much like a brush but from outside of the chart
+var filter = function filter(config, pc, events) {
+  return function () {
+    var filters = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+
+    // will reset if null which goes against most of the API
+    //   need to think this through but maybe provide filterReset like brushReset
+    //   as a better alternative
+    config.filters = filters;
+    filterUpdated(config, pc, events)(pc.selected());
+
+    return this;
+  };
+};
+
 var version = "2.1.9";
 
 var DefaultConfig = {
@@ -2912,7 +3124,9 @@ var DefaultConfig = {
   hideAxis: [],
   flipAxes: [],
   animationTime: 1100, // How long it takes to flip the axis when you double click
-  rotateLabels: false
+  rotateLabels: false,
+  resolution: false,
+  filters: null
 };
 
 var _this$4 = undefined;
@@ -3183,6 +3397,8 @@ var ParCoords = function ParCoords(userConfig) {
   pc.renderBrushed = renderBrushed(config, pc, events);
   pc.renderMarked = renderMarked(config, pc, events);
   pc.render.default = renderDefault(config, pc, ctx, position);
+  pc.render.tiled = renderTiled(config, pc, ctx, position);
+  pc.renderBrushed.tiled = renderTiledBrushed(config, pc, ctx, position);
   pc.render.queue = renderDefaultQueue(config, pc, foregroundQueue);
   pc.renderBrushed.default = renderBrushedDefault(config, ctx, position, pc, brush);
   pc.renderBrushed.queue = renderBrushedQueue(config, brush, brushedQueue);
@@ -3252,6 +3468,9 @@ var ParCoords = function ParCoords(userConfig) {
   install2DStrums(brush, config, pc, events, xscale);
   installAngularBrush(brush, config, pc, events, xscale);
   install1DMultiAxes(brush, config, pc, events);
+
+  // allow outside filters
+  pc.filter = filter(config, pc);
 
   pc.version = version;
   // this descriptive text should live with other introspective methods

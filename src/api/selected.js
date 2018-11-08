@@ -1,4 +1,5 @@
 import { brushSelection } from 'd3-brush';
+import { matchArray } from 'searchjs';
 
 const selected = (config, pc) => () => {
   let actives = [];
@@ -97,7 +98,8 @@ const selected = (config, pc) => () => {
         );
       },
     };
-    return config.data.filter(d =>
+
+    return matchArray(config.data, config.filters).filter(d =>
       actives.every((p, dimension) =>
         within[config.dimensions[p].type](d, p, dimension)
       )
@@ -191,7 +193,7 @@ const selected = (config, pc) => () => {
       // filter data, but instead of returning it now,
       // put it into multiBrush data which is returned after
       // all brushes are iterated through.
-      let filtered = config.data.filter(d =>
+      let filtered = matchArray(config.data, config.filters).filter(d =>
         actives.every((p, dimension) =>
           within[config.dimensions[p].type](d, p, dimension)
         )
