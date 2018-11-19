@@ -4127,303 +4127,6 @@
       };
     };
 
-    //https://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/
-    function toType(obj) {
-    	return {}.toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase();
-    }
-
-    // returns the item in the object that matches a key
-    // but is smart enough to handle dot-notation
-    // so "a.b" returns obj["a.b"] or obj["a"]["b"] if it exists
-    function deepField(data, propertyPath, propertySearch, propertySearchDepth) {
-    	var ret = null,
-    	    i = void 0,
-    	    copyPropertyPath = void 0,
-    	    itemValue = void 0,
-    	    parameter = void 0,
-    	    newPropertySearchDepth = -1;
-    	// Check if the max-search depth got reached when propertySearch is activated
-    	if (propertySearch) {
-    		if (propertySearchDepth === 0) {
-    			// Max depth reached
-    			return null;
-    		} else if (propertySearchDepth !== -1) {
-    			newPropertySearchDepth = propertySearchDepth - 1;
-    		}
-    	}
-
-    	if (data === null || data === undefined || propertyPath === null || propertyPath === undefined || !Array.isArray(propertyPath) || propertyPath.length < 1) {
-    		ret = null;
-    	} else if (Array.isArray(data)) {
-    		// If it is an Array we have to check all the items for the value
-    		// Go through each of the items and return all the values that have it
-    		ret = [];
-    		for (i = 0; i < data.length; i++) {
-    			// We copy the value because it is just a reference the first round would delete it and the second one would
-    			// not know anymore what to look for
-    			copyPropertyPath = propertyPath.slice(0);
-
-    			// First try to find the value
-    			itemValue = deepField(data[i], copyPropertyPath, propertySearch, newPropertySearchDepth - 1);
-
-    			// We return all the values that match
-    			if (itemValue) {
-    				ret.push(itemValue);
-    			}
-    		}
-    		if (ret.length === 0) {
-    			ret = null;
-    		}
-    	} else if ((typeof data === 'undefined' ? 'undefined' : _typeof(data)) === 'object') {
-    		// It is an object so we can proceed normally
-
-    		// Get the parameter
-    		parameter = propertyPath[0];
-
-    		// If propertySearch is activated we go on to look on lower levels
-    		if (!data.hasOwnProperty(parameter) && propertySearch) {
-    			var propertyNames = Object.keys(data);
-    			ret = [];
-
-    			for (i = 0; i < propertyNames.length; i++) {
-    				var propertyData = data[propertyNames[i]];
-
-    				if (propertyData === null || propertyData === undefined) {
-    					continue;
-    				}
-
-    				// If the property contains an array or an object we have to dig deeper
-    				if (Array.isArray(propertyData)) {
-
-    					// Is an array so we have to check every item
-    					propertyData.forEach(function (propertyDataItem) {
-    						var foundValue = deepField(propertyDataItem, propertyPath, propertySearch, newPropertySearchDepth);
-    						if (foundValue !== null) {
-    							ret.push(foundValue);
-    						}
-    					});
-    				} else if (propertyData.constructor.name === 'Object') {
-    					// Is a single object so we can check it directly
-    					var foundValue = deepField(propertyData, propertyPath, propertySearch, newPropertySearchDepth);
-    					if (foundValue !== null) {
-    						ret.push(foundValue);
-    					}
-    				}
-    			}
-
-    			if (ret.length === 0) {
-    				ret = null;
-    			} else if (ret.length === 1) {
-    				ret = ret[0];
-    			}
-    		} else if (propertyPath.length < 2) {
-    			// If the current one was the last parameter part left we can directly return
-    			ret = data[parameter];
-    		} else {
-    			// If there are more parts left we go on with the search
-
-    			// We get rid of the first parameter
-    			ret = deepField(data[parameter], propertyPath.slice(1), propertySearch, newPropertySearchDepth);
-    		}
-    	}
-
-    	return ret;
-    }
-
-    function _getSingleOpt(first, override, fallback) {
-    	var ret = void 0;
-    	if (first !== undefined) {
-    		ret = first;
-    	} else if (override !== undefined) {
-    		ret = override;
-    	} else {
-    		ret = fallback;
-    	}
-    	return ret;
-    }
-
-    function _getOptions(search, _defaults) {
-    	var options = {};
-
-    	search = search || {};
-
-    	// did we have a negator?
-    	//options.negator = search._not ? true : _defaults.negator || false;
-    	options.negator = _getSingleOpt(search._not, _defaults.negator, false);
-    	// do we join via AND or OR
-    	//options.joinAnd = search._join && search._join === "OR" ? false : _defaults.join || true;
-    	options.joinAnd = _getSingleOpt(search._join, _defaults.join, "AND") !== "OR";
-
-    	// did we have text, word, start or end search?
-    	options.text = _getSingleOpt(search._text, _defaults.text, false);
-    	options.word = _getSingleOpt(search._word, _defaults.word, false);
-    	options.start = _getSingleOpt(search._start, _defaults.start, false);
-    	options.end = _getSingleOpt(search._end, _defaults.end, false);
-
-    	options.separator = search._separator || _defaults.separator || '.';
-    	options.propertySearch = _getSingleOpt(search._propertySearch, _defaults.propertySearch, false);
-    	options.propertySearchDepth = _getSingleOpt(search._propertySearchDepth, _defaults.propertySearchDepth, -1);
-
-    	return options;
-    }
-
-    var _defaults = {};
-
-    function singleMatch(field, s, text, word, start, end) {
-    	var oneMatch = false,
-    	    t = void 0,
-    	    re = void 0,
-    	    j = void 0,
-    	    from = void 0,
-    	    to = void 0;
-    	// for numbers, exact match; for strings, ignore-case match; for anything else, no match
-    	t = typeof field === 'undefined' ? 'undefined' : _typeof(field);
-    	if (field === null) {
-    		oneMatch = s === null;
-    	} else if (field === undefined) {
-    		oneMatch = s === undefined;
-    	} else if (t === "boolean") {
-    		oneMatch = s === field;
-    	} else if (t === "number" || field instanceof Date) {
-    		if (s !== null && s !== undefined && toType(s) === "object") {
-    			if (s.from !== undefined || s.to !== undefined || s.gte !== undefined || s.lte !== undefined) {
-    				from = s.from || s.gte;
-    				to = s.to || s.lte;
-    				oneMatch = (s.from !== undefined || s.gte !== undefined ? field >= from : true) && (s.to !== undefined || s.lte !== undefined ? field <= to : true);
-    			} else if (s.gt !== undefined || s.lt !== undefined) {
-    				oneMatch = (s.gt !== undefined ? field > s.gt : true) && (s.lt !== undefined ? field < s.lt : true);
-    			}
-    		} else {
-    			if (field instanceof Date && s instanceof Date) {
-    				oneMatch = field.getTime() === s.getTime();
-    			} else {
-    				oneMatch = field === s;
-    			}
-    		}
-    	} else if (t === "string") {
-    		if (typeof s === "string") {
-    			s = s.toLowerCase();
-    		}
-    		field = field.toLowerCase();
-    		if (text) {
-    			oneMatch = field.indexOf(s) !== -1;
-    		} else if (word) {
-    			re = new RegExp("(\\s|^)" + s + "(?=\\s|$)", "i");
-    			oneMatch = field && field.match(re) !== null;
-    		} else if (start) {
-    			re = new RegExp("^" + s, "i");
-    			oneMatch = field && field.match(re) !== null;
-    		} else if (end) {
-    			re = new RegExp(s + "$", "i");
-    			oneMatch = field && field.match(re) !== null;
-    		} else if (s !== null && s !== undefined && toType(s) === "object") {
-    			if (s.from !== undefined || s.to !== undefined || s.gte !== undefined || s.lte !== undefined) {
-    				from = s.from || s.gte;
-    				to = s.to || s.lte;
-    				oneMatch = (s.from !== undefined || s.gte !== undefined ? field >= from : true) && (s.to !== undefined || s.lte !== undefined ? field <= to : true);
-    			} else if (s.gt !== undefined || s.lt !== undefined) {
-    				oneMatch = (s.gt !== undefined ? field > s.gt : true) && (s.lt !== undefined ? field < s.lt : true);
-    			}
-    		} else {
-    			oneMatch = s === field;
-    		}
-    	} else if (field.length !== undefined) {
-    		// array, so go through each
-    		for (j = 0; j < field.length; j++) {
-    			oneMatch = singleMatch(field[j], s, text, word, start, end);
-    			if (oneMatch) {
-    				break;
-    			}
-    		}
-    	} else if (t === "object") {
-    		oneMatch = field[s] !== undefined;
-    	}
-    	return oneMatch;
-    }
-
-    function matchArray(ary, search) {
-    	var matched = false,
-    	    i = void 0,
-    	    ret = [],
-    	    options = _getOptions(search, _defaults);
-    	if (ary && ary.length > 0) {
-    		for (i = 0; i < ary.length; i++) {
-    			matched = _matchObj(ary[i], search, options);
-    			if (matched) {
-    				ret.push(ary[i]);
-    			}
-    		}
-    	}
-    	return ret;
-    }
-
-    function matchObject(obj, search) {
-    	var options = _getOptions(search, _defaults);
-    	return _matchObj(obj, search, options);
-    }
-
-    function _matchObj(obj, search, options) {
-    	var i = void 0,
-    	    j = void 0,
-    	    matched = void 0,
-    	    oneMatch = void 0,
-    	    ary = void 0,
-    	    searchTermParts = void 0;
-    	search = search || {};
-
-    	// if joinAnd, then matched=true until we have a single non-match; if !joinAnd, then matched=false until we have a single match
-    	matched = !!options.joinAnd;
-
-    	// are we a primitive or a composite?
-    	if (search.terms) {
-    		for (j = 0; j < search.terms.length; j++) {
-    			oneMatch = matchObject(obj, search.terms[j]);
-    			if (options.negator) {
-    				oneMatch = !oneMatch;
-    			}
-    			// if AND, a single match failure makes all fail, and we break
-    			// if OR, a single match success makes all succeed, and we break
-    			if (options.joinAnd && !oneMatch) {
-    				matched = false;
-    				break;
-    			} else if (!options.joinAnd && oneMatch) {
-    				matched = true;
-    				break;
-    			}
-    		}
-    	} else {
-    		// match to the search field
-    		for (i in search) {
-    			if (search.hasOwnProperty(i) && i.indexOf("_") !== 0) {
-    				// match each one, if search[i] is an array - just concat to be safe
-    				searchTermParts = i.split(options.separator);
-    				ary = [].concat(search[i]);
-    				for (j = 0; j < ary.length; j++) {
-    					oneMatch = singleMatch(deepField(obj, searchTermParts, options.propertySearch, options.propertySearchDepth), ary[j], options.text, options.word, options.start, options.end);
-    					if (oneMatch) {
-    						break;
-    					}
-    				}
-    				// negator
-    				if (options.negator) {
-    					oneMatch = !oneMatch;
-    				}
-
-    				// if AND, a single match failure makes all fail, and we break
-    				// if OR, a single match success makes all succeed, and we break
-    				if (options.joinAnd && !oneMatch) {
-    					matched = false;
-    					break;
-    				} else if (!options.joinAnd && oneMatch) {
-    					matched = true;
-    					break;
-    				}
-    			}
-    		}
-    	}
-    	return matched;
-    }
-
     //https://github.com/d3/d3-brush/issues/10
 
     // data within extents
@@ -4451,9 +4154,7 @@
         //if (actives.length === 0) return false;
 
         // Resolves broken examples for now. They expect to get the full dataset back from empty brushes
-        if (actives.length === 0) {
-          return matchArray(config.data, config.filters);
-        }
+        if (actives.length === 0) return config.data;
 
         // test if within range
         var within = {
@@ -4478,7 +4179,7 @@
           }
         };
 
-        return matchArray(config.data, config.filters).filter(function (d) {
+        return config.data.filter(function (d) {
           switch (brushGroup.predicate) {
             case 'AND':
               return actives.every(function (p, dimension) {
@@ -4509,13 +4210,35 @@
 
         var _brush = brushY(_selector).extent([[-15, 0], [15, brushRangeMax]]);
 
+        var invertCategorical = function invertCategorical(selection$$1, yscale) {
+          if (selection$$1.length === 0) {
+            return [];
+          }
+          var domain = yscale.domain();
+          var range = yscale.range();
+          var found = [];
+          range.forEach(function (d, i) {
+            if (d >= selection$$1[0] && d <= selection$$1[1]) {
+              found.push(domain[i]);
+            }
+          });
+          return found;
+        };
+
         var convertBrushArguments = function convertBrushArguments(args) {
           var args_array = Array.prototype.slice.call(args);
           var axis = args_array[0];
           var selection_raw = brushSelection(args_array[2][0]) || [];
-          var selection_scaled = selection_raw.map(function (d) {
-            return config.dimensions[axis].yscale.invert(d);
-          });
+          // ordinal scales do not have invert
+          var selection_scaled = [];
+          var yscale = config.dimensions[axis].yscale;
+          if (typeof yscale.invert === 'undefined') {
+            selection_scaled = invertCategorical(selection_raw, yscale);
+          } else {
+            selection_scaled = selection_raw.map(function (d) {
+              return config.dimensions[axis].yscale.invert(d);
+            });
+          }
 
           return {
             axis: args_array[0],
@@ -6345,8 +6068,17 @@
 
         // Create a canvas element to store the merged canvases
         var mergedCanvas = document.createElement('canvas');
-        mergedCanvas.width = pc.canvas.foreground.clientWidth * devicePixelRatio;
-        mergedCanvas.height = (pc.canvas.foreground.clientHeight + 30) * devicePixelRatio;
+
+        var foregroundCanvas = pc.canvas.foreground;
+        // We will need to adjust for canvas margins to align the svg and canvas
+        var canvasMarginLeft = Number(foregroundCanvas.style.marginLeft.replace('px', ''));
+
+        var textTopAdjust = 15;
+        var canvasMarginTop = Number(foregroundCanvas.style.marginTop.replace('px', '')) + textTopAdjust;
+        var width = (foregroundCanvas.clientWidth + canvasMarginLeft) * devicePixelRatio;
+        var height = (foregroundCanvas.clientHeight + canvasMarginTop) * devicePixelRatio;
+        mergedCanvas.width = width + 50; // pad so that svg labels at right will not get cut off
+        mergedCanvas.height = height + 30; // pad so that svg labels at bottom will not get cut off
         mergedCanvas.style.width = mergedCanvas.width / devicePixelRatio + 'px';
         mergedCanvas.style.height = mergedCanvas.height / devicePixelRatio + 'px';
 
@@ -6357,13 +6089,22 @@
 
         // Merge all the canvases
         for (var key in pc.canvas) {
-          context.drawImage(pc.canvas[key], 0, 24 * devicePixelRatio, mergedCanvas.width, mergedCanvas.height - 30 * devicePixelRatio);
+          context.drawImage(pc.canvas[key], canvasMarginLeft * devicePixelRatio, canvasMarginTop * devicePixelRatio, width - canvasMarginLeft * devicePixelRatio, height - canvasMarginTop * devicePixelRatio);
         }
 
         // Add SVG elements to canvas
         var DOMURL = window.URL || window.webkitURL || window;
         var serializer = new XMLSerializer();
-        var svgStr = serializer.serializeToString(pc.selection.select('svg').node());
+        // axis labels are translated (0,-5) so we will clone the svg
+        //   and translate down so the labels are drawn on the canvas
+        var svgNodeCopy = pc.selection.select('svg').node().cloneNode(true);
+        svgNodeCopy.setAttribute('transform', 'translate(0,' + textTopAdjust + ')');
+        svgNodeCopy.setAttribute('height', svgNodeCopy.getAttribute('height') + textTopAdjust);
+        // text will need fill attribute since css styles will not get picked up
+        //   this is not sophisticated since it doesn't look up css styles
+        //   if the user changes
+        select(svgNodeCopy).selectAll('text').attr('fill', 'black');
+        var svgStr = serializer.serializeToString(svgNodeCopy);
 
         // Create a Data URI.
         var src = 'data:image/svg+xml;base64,' + window.btoa(svgStr);
@@ -6444,8 +6185,7 @@
               return categoryRangeValue >= ranges[p][0] && categoryRangeValue <= ranges[p][1];
             }
           };
-
-          return matchArray(config.data, config.filters).filter(function (d) {
+          return config.data.filter(function (d) {
             return actives.every(function (p, dimension) {
               return within[config.dimensions[p].type](d, p, dimension);
             });
@@ -6514,7 +6254,7 @@
             // filter data, but instead of returning it now,
             // put it into multiBrush data which is returned after
             // all brushes are iterated through.
-            var filtered = matchArray(config.data, config.filters).filter(function (d) {
+            var filtered = config.data.filter(function (d) {
               return actives.every(function (p, dimension) {
                 return within[config.dimensions[p].type](d, p, dimension);
               });
@@ -9667,7 +9407,7 @@
     };
 
     // a better "typeof" from this post: http://stackoverflow.com/questions/7390426/better-way-to-get-type-of-a-javascript-variable
-    var toType$1 = function toType(v) {
+    var toType = function toType(v) {
       return {}.toString.call(v).match(/\s([a-zA-Z]+)/)[1].toLowerCase();
     };
 
@@ -9814,7 +9554,7 @@
 
     // try to coerce to number before returning type
     var toTypeCoerceNumbers = function toTypeCoerceNumbers(v) {
-      return parseFloat(v) == v && v !== null ? 'number' : toType$1(v);
+      return parseFloat(v) == v && v !== null ? 'number' : toType(v);
     };
 
     // attempt to determine types of each dimension based on first row of data
@@ -9913,30 +9653,7 @@
       };
     };
 
-    var filterUpdated = function filterUpdated(config, pc, events) {
-      return function (newSelection) {
-        config.brushed = newSelection;
-        //events.call('filter', pc, config.brushed);
-        pc.renderBrushed();
-      };
-    };
-
-    // filter data much like a brush but from outside of the chart
-    var filter = function filter(config, pc, events) {
-      return function () {
-        var filters = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
-
-        // will reset if null which goes against most of the API
-        //   need to think this through but maybe provide filterReset like brushReset
-        //   as a better alternative
-        config.filters = filters;
-        filterUpdated(config, pc, events)(pc.selected());
-
-        return this;
-      };
-    };
-
-    var version = "2.1.8";
+    var version = "2.2.1";
 
     var DefaultConfig = {
       data: [],
@@ -9970,8 +9687,7 @@
       hideAxis: [],
       flipAxes: [],
       animationTime: 1100, // How long it takes to flip the axis when you double click
-      rotateLabels: false,
-      filters: null
+      rotateLabels: false
     };
 
     var _this$4 = undefined;
@@ -10312,13 +10028,10 @@
       installAngularBrush(brush, config, pc, events, xscale);
       install1DMultiAxes(brush, config, pc, events);
 
-      // allow outside filters
-      pc.filter = filter(config, pc);
-
       pc.version = version;
       // this descriptive text should live with other introspective methods
       pc.toString = toString(config);
-      pc.toType = toType$1;
+      pc.toType = toType;
       // try to coerce to number before returning type
       pc.toTypeCoerceNumbers = toTypeCoerceNumbers;
 
