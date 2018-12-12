@@ -3061,30 +3061,7 @@
     };
   };
 
-  var filterUpdated = function filterUpdated(config, pc, events) {
-    return function (newSelection) {
-      config.brushed = newSelection;
-      //events.call('filter', pc, config.brushed);
-      pc.renderBrushed();
-    };
-  };
-
-  // filter data much like a brush but from outside of the chart
-  var filter = function filter(config, pc, events) {
-    return function () {
-      var filters = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
-
-      // will reset if null which goes against most of the API
-      //   need to think this through but maybe provide filterReset like brushReset
-      //   as a better alternative
-      config.filters = filters;
-      filterUpdated(config, pc, events)(pc.selected());
-
-      return this;
-    };
-  };
-
-  var version = "2.1.9";
+  var version = "2.2.1";
 
   var DefaultConfig = {
     data: [],
