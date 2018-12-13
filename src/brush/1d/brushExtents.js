@@ -7,9 +7,10 @@ const brushExtents = (state, config, pc) => extents => {
   if (typeof extents === 'undefined') {
     return Object.keys(config.dimensions).reduce((acc, cur) => {
       const brush = brushes[cur];
+      const dim = config.dimensions[cur];
       //todo: brush check
       if (brush !== undefined && brushSelection(brushNodes[cur]) !== null) {
-        acc[cur] = brush.extent();
+        acc[cur] = brushSelection(brushNodes[cur]).map(dim.yscale.invert).reverse();
       }
 
       return acc;
