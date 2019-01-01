@@ -88,9 +88,9 @@ var invertCategorical = function invertCategorical(selection, scale) {
     return [];
   }
   var domain = scale.domain();
-  var range = scale.range();
+  var range$$1 = scale.range();
   var found = [];
-  range.forEach(function (d, i) {
+  range$$1.forEach(function (d, i) {
     if (d >= selection[0] && d <= selection[1]) {
       found.push(domain[i]);
     }
@@ -99,6 +99,7 @@ var invertCategorical = function invertCategorical(selection, scale) {
 };
 
 var invertByScale = function invertByScale(selection, scale) {
+  if (scale === null) return [];
   return typeof scale.invert === 'undefined' ? invertCategorical(selection, scale) : selection.map(function (d) {
     return scale.invert(d);
   });
@@ -113,6 +114,7 @@ var brushExtents = function brushExtents(state, config, pc) {
     if (typeof extents === 'undefined') {
       return Object.keys(config.dimensions).reduce(function (acc, cur) {
         var brush = brushes[cur];
+        var dim = config.dimensions[cur];
         //todo: brush check
         if (brush !== undefined && brushSelection(brushNodes[cur]) !== null) {
           var raw = brushSelection(brushNodes[cur]);
@@ -290,31 +292,19 @@ var brushFor = function brushFor(state, config, pc, events, brushGroup) {
 
     var _brush = brushY(_selector).extent([[-15, 0], [15, brushRangeMax]]);
 
-<<<<<<< HEAD
-    var invertCategorical = function invertCategorical(selection, yscale) {
-      if (selection.length === 0) {
-        return [];
-      }
-      var domain = yscale.domain();
-      var range$$1 = yscale.range();
-      var found = [];
-      range$$1.forEach(function (d, i) {
-        if (d >= selection[0] && d <= selection[1]) {
-          found.push(domain[i]);
-        }
-      });
-      return found;
-    };
-
-=======
->>>>>>> 7c24c395bf7b5928c45ec406d037b50a3c5e7d1a
     var convertBrushArguments = function convertBrushArguments(args) {
       var args_array = Array.prototype.slice.call(args);
       var axis = args_array[0];
-      // ordinal scales do not have invert
-      var yscale = config.dimensions[axis].yscale;
 
       var raw = brushSelection(args_array[2][0]) || [];
+
+      // handle hidden axes which will not have a yscale
+      var yscale = null;
+      if (config.dimensions.hasOwnProperty(axis)) {
+        yscale = config.dimensions[axis].yscale;
+      }
+
+      // ordinal scales do not have invert
       var scaled = invertByScale(raw, yscale);
 
       return {
@@ -2790,7 +2780,7 @@ var Matrix = function () {
         }
     }, {
         key: "max",
-        value: function max() {
+        value: function max$$1() {
             if (this.elements.length === 0) {
                 return null;
             }
@@ -3423,7 +3413,7 @@ var Vector = function () {
         }
     }, {
         key: "max",
-        value: function max() {
+        value: function max$$1() {
             var m = 0,
                 i = this.elements.length;
             while (i--) {
@@ -4230,7 +4220,6 @@ var scale = function scale(config, pc) {
   };
 };
 
-<<<<<<< HEAD
 var filterUpdated = function filterUpdated(config, pc, events) {
   return function (newSelection) {
     config.brushed = newSelection;
@@ -4254,10 +4243,7 @@ var filter = function filter(config, pc, events) {
   };
 };
 
-var version = "2.1.9";
-=======
 var version = "2.2.4";
->>>>>>> 7c24c395bf7b5928c45ec406d037b50a3c5e7d1a
 
 var DefaultConfig = {
   data: [],

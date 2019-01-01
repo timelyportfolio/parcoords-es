@@ -93,6 +93,7 @@
   };
 
   var invertByScale = function invertByScale(selection, scale) {
+    if (scale === null) return [];
     return typeof scale.invert === 'undefined' ? invertCategorical(selection, scale) : selection.map(function (d) {
       return scale.invert(d);
     });
@@ -107,6 +108,7 @@
       if (typeof extents === 'undefined') {
         return Object.keys(config.dimensions).reduce(function (acc, cur) {
           var brush = brushes[cur];
+          var dim = config.dimensions[cur];
           //todo: brush check
           if (brush !== undefined && d3Brush.brushSelection(brushNodes[cur]) !== null) {
             var raw = d3Brush.brushSelection(brushNodes[cur]);
@@ -287,10 +289,16 @@
       var convertBrushArguments = function convertBrushArguments(args) {
         var args_array = Array.prototype.slice.call(args);
         var axis = args_array[0];
-        // ordinal scales do not have invert
-        var yscale = config.dimensions[axis].yscale;
 
         var raw = d3Brush.brushSelection(args_array[2][0]) || [];
+
+        // handle hidden axes which will not have a yscale
+        var yscale = null;
+        if (config.dimensions.hasOwnProperty(axis)) {
+          yscale = config.dimensions[axis].yscale;
+        }
+
+        // ordinal scales do not have invert
         var scaled = invertByScale(raw, yscale);
 
         return {
@@ -4201,6 +4209,29 @@
       config.dimensions[d].yscale.domain(domain);
       pc.render.default();
       pc.updateAxes();
+
+      return this;
+    };
+  };
+
+  var filterUpdated = function filterUpdated(config, pc, events) {
+    return function (newSelection) {
+      config.brushed = newSelection;
+      //events.call('filter', pc, config.brushed);
+      pc.renderBrushed();
+    };
+  };
+
+  // filter data much like a brush but from outside of the chart
+  var filter = function filter(config, pc, events) {
+    return function () {
+      var filters = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+
+      // will reset if null which goes against most of the API
+      //   need to think this through but maybe provide filterReset like brushReset
+      //   as a better alternative
+      config.filters = filters;
+      filterUpdated(config, pc, events)(pc.selected());
 
       return this;
     };

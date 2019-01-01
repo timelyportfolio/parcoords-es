@@ -38,7 +38,7 @@
     "d3-shape": "^1.2.0",
     "d3-transition": "^1.1.1",
     "requestanimationframe": "0.0.23",
-    "searchjs": "^1.0.0",
+    "searchjs": "file:../searchjs",
     "sylvester-es6": "0.0.2"
   },
   "devDependencies": {
