@@ -1,6 +1,8 @@
 import { select } from 'd3-selection';
 import { brushSelection } from 'd3-brush';
 
+import invertByScale from '../invertByScale';
+
 const brushExtents = (state, config, pc) => extents => {
   const { brushes, brushNodes } = state;
 
@@ -10,7 +12,17 @@ const brushExtents = (state, config, pc) => extents => {
       const dim = config.dimensions[cur];
       //todo: brush check
       if (brush !== undefined && brushSelection(brushNodes[cur]) !== null) {
-        acc[cur] = brushSelection(brushNodes[cur]).map(dim.yscale.invert).reverse();
+        const raw = brushSelection(brushNodes[cur]);
+        const yScale = config.dimensions[cur].yscale;
+        const scaled = invertByScale(raw, yScale);
+
+        acc[cur] = {
+          extent: brush.extent(),
+          selection: {
+            raw,
+            scaled,
+          },
+        };
       }
 
       return acc;
