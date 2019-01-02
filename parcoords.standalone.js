@@ -4266,12 +4266,6 @@
       };
     };
 
-    var _typeof$1 = typeof Symbol === "function" && _typeof(Symbol.iterator) === "symbol" ? function (obj) {
-    	return typeof obj === "undefined" ? "undefined" : _typeof(obj);
-    } : function (obj) {
-    	return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj === "undefined" ? "undefined" : _typeof(obj);
-    };
-
     //https://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/
     function toType(obj) {
     	return {}.toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase();
@@ -4319,7 +4313,7 @@
     		if (ret.length === 0) {
     			ret = null;
     		}
-    	} else if ((typeof data === 'undefined' ? 'undefined' : _typeof$1(data)) === 'object') {
+    	} else if ((typeof data === 'undefined' ? 'undefined' : _typeof(data)) === 'object') {
     		// It is an object so we can proceed normally
 
     		// Get the parameter
@@ -4422,7 +4416,7 @@
     	    from = void 0,
     	    to = void 0;
     	// for numbers, exact match; for strings, ignore-case match; for anything else, no match
-    	t = typeof field === 'undefined' ? 'undefined' : _typeof$1(field);
+    	t = typeof field === 'undefined' ? 'undefined' : _typeof(field);
     	if (field === null) {
     		oneMatch = s === null;
     	} else if (field === undefined) {
