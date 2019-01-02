@@ -1,5 +1,3 @@
-import { matchArray } from 'searchjs';
-
 const filterUpdated = (config, pc, events) => newSelection => {
   config.brushed = newSelection;
   //events.call('filter', pc, config.brushed);
