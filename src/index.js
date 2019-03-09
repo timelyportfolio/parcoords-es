@@ -219,7 +219,7 @@ const ParCoords = userConfig => {
   install1DAxesMulti(brush, config, pc, events);
 
   // allow outside filters
-  pc.filter = filter(config, pc);
+  pc.filter = filter(config, pc, events);
 
   pc.version = version;
   // this descriptive text should live with other introspective methods

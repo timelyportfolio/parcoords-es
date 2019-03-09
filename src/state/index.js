@@ -34,6 +34,7 @@ const initState = userConfig => {
     'brushend',
     'brushstart',
     'axesreorder',
+    'filter',
   ].concat(keys(config));
 
   const events = dispatch.apply(this, eventTypes),

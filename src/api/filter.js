@@ -1,6 +1,6 @@
-const filterUpdated = (config, pc, events) => newSelection => {
+const filterUpdated = (config, pc, events) => (newSelection, filters) => {
   config.brushed = newSelection;
-  //events.call('filter', pc, config.brushed);
+  events.call('filter', pc, config.brushed, filters);
   pc.renderBrushed();
 };
 
@@ -11,7 +11,7 @@ const filter = (config, pc, events) =>
     //   need to think this through but maybe provide filterReset like brushReset
     //   as a better alternative
     config.filters = filters;
-    filterUpdated(config, pc, events)(pc.selected());
+    filterUpdated(config, pc, events)(pc.selected(), filters);
 
     return this;
   };

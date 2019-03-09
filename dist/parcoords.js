@@ -4226,9 +4226,9 @@
   };
 
   var filterUpdated = function filterUpdated(config, pc, events) {
-    return function (newSelection) {
+    return function (newSelection, filters) {
       config.brushed = newSelection;
-      //events.call('filter', pc, config.brushed);
+      events.call('filter', pc, config.brushed, filters);
       pc.renderBrushed();
     };
   };
@@ -4242,7 +4242,7 @@
       //   need to think this through but maybe provide filterReset like brushReset
       //   as a better alternative
       config.filters = filters;
-      filterUpdated(config, pc, events)(pc.selected());
+      filterUpdated(config, pc, events)(pc.selected(), filters);
 
       return this;
     };
@@ -4305,7 +4305,7 @@
       });
     }
 
-    var eventTypes = ['render', 'resize', 'highlight', 'mark', 'brush', 'brushend', 'brushstart', 'axesreorder'].concat(d3Collection.keys(config));
+    var eventTypes = ['render', 'resize', 'highlight', 'mark', 'brush', 'brushend', 'brushstart', 'axesreorder', 'filter'].concat(d3Collection.keys(config));
 
     var events = d3Dispatch.dispatch.apply(_this$4, eventTypes),
         flags = {
@@ -4629,7 +4629,7 @@
     install1DMultiAxes(brush, config, pc, events);
 
     // allow outside filters
-    pc.filter = filter(config, pc);
+    pc.filter = filter(config, pc, events);
 
     pc.version = version;
     // this descriptive text should live with other introspective methods
