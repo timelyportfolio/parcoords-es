@@ -186,7 +186,9 @@ var brushReset = function brushReset(state, config, pc) {
       config.brushed = false;
       if (pc.g() !== undefined && pc.g() !== null) {
         pc.g().selectAll('.brush').each(function (d) {
-          select(this).call(brushes[d].move, null);
+          if (brushes[d] !== undefined) {
+            select(this).call(brushes[d].move, null);
+          }
         });
         pc.renderBrushed();
       }
@@ -288,6 +290,11 @@ var brushUpdated = function brushUpdated(config, pc, events, args) {
 
 var brushFor = function brushFor(state, config, pc, events, brushGroup) {
   return function (axis, _selector) {
+    // handle hidden axes which will not be a property of dimensions
+    if (!config.dimensions.hasOwnProperty(axis)) {
+      return function () {};
+    }
+
     var brushRangeMax = config.dimensions[axis].type === 'string' ? config.dimensions[axis].yscale.range()[config.dimensions[axis].yscale.range().length - 1] : config.dimensions[axis].yscale.range()[0];
 
     var _brush = brushY(_selector).extent([[-15, 0], [15, brushRangeMax]]);
@@ -1895,7 +1902,11 @@ var flipAxisAndUpdatePCP = function flipAxisAndUpdatePCP(config, pc, axis) {
   return function (dimension) {
     pc.flip(dimension);
     pc.brushReset(dimension);
-    select(this.parentElement).transition().duration(config.animationTime).call(axis.scale(config.dimensions[dimension].yscale));
+
+    // select(this.parentElement)
+    pc.selection.select('svg').selectAll('g.axis').filter(function (d) {
+      return d === dimension;
+    }).transition().duration(config.animationTime).call(axis.scale(config.dimensions[dimension].yscale));
     pc.render();
   };
 };
@@ -2189,11 +2200,11 @@ var commonScale = function commonScale(config, pc) {
   };
 };
 
-var computeRealCentroids = function computeRealCentroids(dimensions, position) {
+var computeRealCentroids = function computeRealCentroids(config, position) {
   return function (row) {
-    return Object.keys(dimensions).map(function (d) {
+    return Object.keys(config.dimensions).map(function (d) {
       var x = position(d);
-      var y = dimensions[d].yscale(row[d]);
+      var y = config.dimensions[d].yscale(row[d]);
       return [x, y];
     });
   };
@@ -4243,7 +4254,7 @@ var filter = function filter(config, pc, events) {
   };
 };
 
-var version = "2.2.4";
+var version = "2.2.8";
 
 var DefaultConfig = {
   data: [],
@@ -4391,7 +4402,7 @@ var without = function without(arr, items) {
   return arr;
 };
 
-var sideEffects = function sideEffects(config, ctx, pc, xscale, flags, brushedQueue, markedQueue, foregroundQueue) {
+var sideEffects = function sideEffects(config, ctx, pc, xscale, axis, flags, brushedQueue, markedQueue, foregroundQueue) {
   return dispatch.apply(_this$5, Object.keys(config)).on('composite', function (d) {
     ctx.foreground.globalCompositeOperation = d.value;
     ctx.brushed.globalCompositeOperation = d.value;
@@ -4439,7 +4450,8 @@ var sideEffects = function sideEffects(config, ctx, pc, xscale, flags, brushedQu
     pc.dimensions(without(config.dimensions, d.value));
   }).on('flipAxes', function (d) {
     if (d.value && d.value.length) {
-      d.value.forEach(function (axis) {
+      d.value.forEach(function (dimension) {
+        flipAxisAndUpdatePCP(config, pc, axis)(dimension);
       });
       pc.updateAxes(0);
     }
@@ -4480,7 +4492,7 @@ var _rebind = function _rebind(target, source, method) {
 };
 
 var bindEvents = function bindEvents(__, ctx, pc, xscale, flags, brushedQueue, markedQueue, foregroundQueue, events, axis) {
-  var side_effects = sideEffects(__, ctx, pc, xscale, flags, brushedQueue, markedQueue, foregroundQueue);
+  var side_effects = sideEffects(__, ctx, pc, xscale, axis, flags, brushedQueue, markedQueue, foregroundQueue);
 
   // create getter/setters
   getset(pc, __, events, side_effects);
@@ -4558,7 +4570,7 @@ var ParCoords = function ParCoords(userConfig) {
   pc.renderMarked.default = renderMarkedDefault(config, pc, ctx, position);
   pc.renderMarked.queue = renderMarkedQueue(config, markedQueue);
 
-  pc.compute_real_centroids = computeRealCentroids(config.dimensions, position);
+  pc.compute_real_centroids = computeRealCentroids(config, position);
   pc.shadows = shadows(flags, pc);
   pc.axisDots = axisDots(config, pc, position);
   pc.clear = clear(config, pc, ctx, brush);
