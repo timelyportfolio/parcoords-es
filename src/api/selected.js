@@ -7,6 +7,10 @@ const selected = (config, pc) => () => {
   let ranges = {};
   //get brush selections from each node, convert to actual values
   //invert order of values in array to comply with the parcoords architecture
+  if(typeof(pc.g()) === "undefined") {
+    return config.data;
+  }
+
   if (config.brushes.length === 0) {
     let nodes = pc
       .g()

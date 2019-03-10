@@ -6556,6 +6556,10 @@
         var ranges = {};
         //get brush selections from each node, convert to actual values
         //invert order of values in array to comply with the parcoords architecture
+        if (typeof pc.g() === "undefined") {
+          return config.data;
+        }
+
         if (config.brushes.length === 0) {
           var nodes = pc.g().selectAll('.brush').nodes();
           for (var k = 0; k < nodes.length; k++) {
@@ -8237,6 +8241,8 @@
     var saturday = weekday(6);
 
     var sundays = sunday.range;
+    var mondays = monday.range;
+    var thursdays = thursday.range;
 
     var month = newInterval(function (date) {
       date.setDate(1);
@@ -8326,6 +8332,8 @@
     var utcSaturday = utcWeekday(6);
 
     var utcSundays = utcSunday.range;
+    var utcMondays = utcMonday.range;
+    var utcThursdays = utcThursday.range;
 
     var utcMonth = newInterval(function (date) {
       date.setUTCDate(1);

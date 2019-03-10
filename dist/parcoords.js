@@ -1673,6 +1673,10 @@
       var ranges = {};
       //get brush selections from each node, convert to actual values
       //invert order of values in array to comply with the parcoords architecture
+      if (typeof pc.g() === "undefined") {
+        return config.data;
+      }
+
       if (config.brushes.length === 0) {
         var nodes = pc.g().selectAll('.brush').nodes();
         for (var k = 0; k < nodes.length; k++) {
